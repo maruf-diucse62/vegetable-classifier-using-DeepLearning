@@ -95,4 +95,42 @@ def load_model():
 model = load_model()
 
 # ---------- Class names (change order if your model uses a different mapping) ----------
-CLASS_NAMES_
+CLASS_NAMES = [
+    "Bean", "Bitter Gourd", "Bottle Gourd", "Brinjal", "Broccoli",
+    "Cabbage", "Capsicum", "Carrot", "Cauliflower", "Cucumber",
+    "Papaya", "Potato", "Pumpkin", "Radish", "Tomato"
+]
+
+# ---------- Streamlit UI ----------
+st.set_page_config(page_title="Vegetable Classifier", layout="centered")
+st.title("🥕 Vegetable Image Classifier")
+st.write("Upload a vegetable image and the model will predict the class.")
+
+uploaded_file = st.file_uploader("Upload an image (JPG, PNG)", type=["jpg", "jpeg", "png"])
+if uploaded_file:
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Uploaded image", use_column_width=True)
+
+    # Preprocess
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+    ])
+    img_t = transform(image).unsqueeze(0)  # add batch dimension
+
+    # Predict
+    with torch.no_grad():
+        output = model(img_t)
+        probs = torch.nn.functional.softmax(output, dim=1).squeeze(0)
+        top_prob, top_idx = torch.max(probs, dim=0)
+        pred_class = CLASS_NAMES[top_idx.item()]
+        confidence = top_prob.item() * 100
+
+    st.success(f"Predicted: **{pred_class}** — Confidence: **{confidence:.2f}%**")
+    # show top-3
+    topk = torch.topk(probs, k=min(3, len(CLASS_NAMES)))
+    st.write("Top predictions:")
+    for p, idx in zip(topk.values, topk.indices):
+        st.write(f"- {CLASS_NAMES[idx]}: {p.item()*100:.2f}%")
+else:
+    st.info("Upload an image to get a prediction.")
